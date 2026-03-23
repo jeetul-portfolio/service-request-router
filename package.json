@@ -1,6 +1,6 @@
 {
   "name": "service-request-router",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Deployment yaml generator for service-request-router",
   "main": "index.js",
   "scripts": {
