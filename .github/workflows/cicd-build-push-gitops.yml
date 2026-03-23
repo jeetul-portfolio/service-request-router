@@ -3,7 +3,7 @@ name: Build, Push, Generate YAML, Notify ArgoCD
 on:
   push:
     branches:
-      - master1
+      - master
   workflow_dispatch:
 
 permissions:

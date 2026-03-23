@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: service-request-router
-  namespace: default
+  namespace: portfolio
 spec:
   replicas: 1
   selector:
@@ -37,12 +37,5 @@ spec:
             limits:
               cpu: 250m
               memory: 256Mi
-          volumeMounts:
-            - name: config-mount-1
-              mountPath: /app/config/config.json
-              subPath: config.json
-              readOnly: true
-      volumes:
-        - name: config-mount-1
-          configMap:
-            name: service-request-router-config
+
+
