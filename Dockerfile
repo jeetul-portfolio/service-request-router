@@ -13,9 +13,10 @@ FROM alpine:3.20
 WORKDIR /app
 
 COPY --from=builder /app/service-request-router /app/service-request-router
+COPY --from=builder /app/config.json /app/config.json
 
 ENV PORT=8080
 
 EXPOSE 8080
 
-CMD ["/app/service-request-router", "-config", "/app/config/config.json"]
+CMD ["/app/service-request-router", "-config", "/app/config.json"]

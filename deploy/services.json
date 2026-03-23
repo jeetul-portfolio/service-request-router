@@ -34,7 +34,7 @@
       "configMounts": [],
       "containerArgs": [
         "-config",
-        "/app/config/config.json"
+        "/app/config.json"
       ]
     }
   ]
