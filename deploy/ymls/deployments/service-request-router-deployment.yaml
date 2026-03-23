@@ -24,7 +24,9 @@ spec:
               echo Pre-start checks completed
       containers:
         - name: service-request-router
-          image: docker.io/jeetulsamaiya1/portfolio:service-request-router-master-102
+          image: docker.io/jeetulsamaiya1/portfolio:service-request-router-master-103
+          command:
+            - /app/service-request-router
           args:
             - -config
             - /app/config/config.json
