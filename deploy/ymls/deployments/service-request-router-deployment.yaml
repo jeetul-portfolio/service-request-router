@@ -24,12 +24,12 @@ spec:
               echo Pre-start checks completed
       containers:
         - name: service-request-router
-          image: docker.io/jeetulsamaiya1/portfolio:service-request-router-master-103
+          image: docker.io/jeetulsamaiya1/portfolio:service-request-router-master-104
           command:
             - /app/service-request-router
           args:
             - -config
-            - /app/config/config.json
+            - /app/config.json
           ports:
             - containerPort: 8080
           resources:
