@@ -17,7 +17,7 @@
     {
       "name": "service-request-router",
       "replicas": 1,
-      "image": "docker.io/jeetulsamaiya1/portfolio-service-request-router:latest",
+      "image": "docker.io/jeetulsamaiya1/portfolio:service-request-router-master-102",
       "containerPort": 8080,
       "preStartCommands": [
         "echo Preparing service-request-router before startup",
