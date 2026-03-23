@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-request-router
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: service-request-router
+  template:
+    metadata:
+      labels:
+        app: service-request-router
+    spec:
+      initContainers:
+        - name: pre-start-commands
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo Preparing service-request-router before startup
+              echo Pre-start checks completed
+      containers:
+        - name: service-request-router
+          image: docker.io/jeetulsamaiya1/portfolio-service-request-router:latest
+          args:
+            - -config
+            - /app/config/config.json
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - name: config-mount-1
+              mountPath: /app/config/config.json
+              subPath: config.json
+              readOnly: true
+      volumes:
+        - name: config-mount-1
+          configMap:
+            name: service-request-router-config
