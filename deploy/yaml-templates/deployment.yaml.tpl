@@ -17,6 +17,7 @@ spec:
       containers:
         - name: {{name}}
           image: {{image}}
+{{containerCommandBlock}}
 {{containerArgsBlock}}
           ports:
             - containerPort: {{containerPort}}

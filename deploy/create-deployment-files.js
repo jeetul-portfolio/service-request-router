@@ -64,6 +64,16 @@ function buildContainerArgsBlock(containerArgs) {
   return lines.join('\n');
 }
 
+function buildContainerCommandBlock(containerCommand) {
+  if (!Array.isArray(containerCommand) || containerCommand.length === 0) {
+    return '';
+  }
+
+  const lines = ['          command:'];
+  containerCommand.forEach((cmd) => lines.push(`            - ${cmd}`));
+  return lines.join('\n');
+}
+
 function buildConfigMountBlocks(configMounts) {
   if (!Array.isArray(configMounts) || configMounts.length === 0) {
     return {
@@ -158,6 +168,7 @@ function resolveDeploymentValues(general, deployment, index) {
   const preStartCommands = deployment.preStartCommands || general.preStartCommands;
   const preStartImage = deployment.preStartImage || general.preStartImage || 'busybox:1.36';
   const initContainersBlock = buildInitContainersBlock(preStartCommands, preStartImage);
+  const containerCommandBlock = buildContainerCommandBlock(deployment.containerCommand);
   const containerArgsBlock = buildContainerArgsBlock(deployment.containerArgs);
 
   return {
@@ -174,6 +185,7 @@ function resolveDeploymentValues(general, deployment, index) {
     servicePort: service.port || deployment.containerPort,
     serviceTargetPort: service.targetPort || deployment.containerPort,
     initContainersBlock,
+    containerCommandBlock,
     containerArgsBlock,
     volumeMountsBlock,
     volumesBlock,

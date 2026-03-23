@@ -19,6 +19,9 @@
       "replicas": 1,
       "image": "docker.io/jeetulsamaiya1/portfolio:service-request-router-master-102",
       "containerPort": 8080,
+      "containerCommand": [
+        "/app/service-request-router"
+      ],
       "preStartCommands": [
         "echo Preparing service-request-router before startup",
         "echo Pre-start checks completed"
