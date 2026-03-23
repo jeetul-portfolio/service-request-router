@@ -1,0 +1,17 @@
+{
+  "port": 8080,
+  "rules": [
+    {
+      "name": "core",
+      "prefix": "/core",
+      "host": "http://core.portfolio.svc.cluster.local:8080",
+      "sort": 10
+    },
+    {
+      "name": "fallback-regex",
+      "regex": "^/.*",
+      "host": "http://demo-svc.default.svc.cluster.local:80",
+      "sort": 1
+    }
+  ]
+}

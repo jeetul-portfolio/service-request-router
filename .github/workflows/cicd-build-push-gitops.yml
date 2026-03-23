@@ -10,12 +10,22 @@ permissions:
   contents: write
   packages: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  SERVICE_NAME: ${{ github.event.repository.name }}
+  DOCKER_REGISTRY: ${{ vars.ORG_DOCKER_REGISTRY }}
+  DOCKER_REGISTRY_USERNAME: ${{ secrets.ORG_DOCKER_REGISTRY_USERNAME }}
+  DOCKER_REGISTRY_PASSWORD: ${{ secrets.ORG_DOCKER_REGISTRY_PASSWORD }}
+  DOCKER_REPO_PRIVATE: ${{ vars.ORG_DOCKER_REPO_PRIVATE || 'false' }}
+  IMAGE_REPOSITORY: ${{ format('{0}/{1}', vars.ORG_DOCKER_NAMESPACE, vars.ORG_IMAGE_NAMESPACE) }}
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     outputs:
       app_version: ${{ steps.semver.outputs.version }}
       app_version_compact: ${{ steps.version_tag.outputs.version_compact }}
+      image_tag: ${{ steps.image_tag.outputs.image_tag }}
       image_ref: ${{ steps.export_image.outputs.image_ref }}
     steps:
       - name: Checkout
@@ -62,16 +72,19 @@ jobs:
           fi
           echo "version_compact=${VERSION_COMPACT}" >> "$GITHUB_OUTPUT"
 
+      - name: Build image tag
+        id: image_tag
+        run: |
+          BRANCH_SAFE=$(echo "${GITHUB_REF_NAME}" | tr '[:upper:]' '[:lower:]' | sed -E 's#[^a-z0-9._-]+#-#g' | sed -E 's#^-+|-+$##g')
+          IMAGE_TAG="${{ env.SERVICE_NAME }}-${BRANCH_SAFE}-${{ steps.version_tag.outputs.version_compact }}"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+
       - name: Commit version bump
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add package.json
-
-          if [ -f package-lock.json ]; then
-            git add package-lock.json
-          fi
+          git add package.json package-lock.json
 
           if git diff --cached --quiet; then
             echo "No version change to commit."
@@ -90,9 +103,9 @@ jobs:
       - name: Log in to container registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ vars.DOCKER_REGISTRY }}
-          username: ${{ secrets.DOCKER_REGISTRY_USERNAME }}
-          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ env.DOCKER_REGISTRY_USERNAME }}
+          password: ${{ env.DOCKER_REGISTRY_PASSWORD }}
 
       - name: Build and push image
         uses: docker/build-push-action@v6
@@ -102,14 +115,14 @@ jobs:
           platforms: linux/arm64
           push: true
           tags: |
-            ${{ vars.DOCKER_REGISTRY }}/${{ vars.DOCKER_IMAGE_REPOSITORY }}:${{ steps.version_tag.outputs.version_compact }}
-            ${{ vars.DOCKER_REGISTRY }}/${{ vars.DOCKER_IMAGE_REPOSITORY }}:sha-${{ github.sha }}
-            ${{ vars.DOCKER_REGISTRY }}/${{ vars.DOCKER_IMAGE_REPOSITORY }}:latest
+            ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}:${{ steps.image_tag.outputs.image_tag }}
+            ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}:sha-${{ github.sha }}
+            ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}:latest
 
       - name: Export image reference (version tag)
         id: export_image
         run: |
-          IMAGE_REF="${{ vars.DOCKER_REGISTRY }}/${{ vars.DOCKER_IMAGE_REPOSITORY }}:${{ steps.version_tag.outputs.version_compact }}"
+          IMAGE_REF="${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}:${{ steps.image_tag.outputs.image_tag }}"
           echo "image_ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
 
   generate-and-commit-manifests:
@@ -133,7 +146,7 @@ jobs:
 
       - name: Update image in deploy/services.json
         env:
-          IMAGE_REF: ${{ vars.DOCKER_REGISTRY }}/${{ vars.DOCKER_IMAGE_REPOSITORY }}:${{ needs.build-and-push.outputs.app_version_compact }}
+          IMAGE_REF: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}:${{ needs.build-and-push.outputs.image_tag }}
         run: |
           node -e '
           const fs = require("fs");
@@ -186,58 +199,3 @@ jobs:
           git commit -m "ci: update image and generated kubernetes manifests [skip ci]"
           git push
 
-  notify-argocd:
-    runs-on: ubuntu-latest
-    needs:
-      - build-and-push
-      - generate-and-commit-manifests
-    steps:
-      - name: Notify Argo CD via webhook
-        env:
-          ARGOCD_WEBHOOK_URL: ${{ secrets.ARGOCD_WEBHOOK_URL }}
-          DEPLOY_ENV: ${{ vars.DEPLOY_ENV }}
-          DOCKER_REGISTRY: ${{ vars.DOCKER_REGISTRY }}
-          DOCKER_IMAGE_REPOSITORY: ${{ vars.DOCKER_IMAGE_REPOSITORY }}
-          APP_VERSION: ${{ needs.build-and-push.outputs.app_version }}
-          APP_VERSION_COMPACT: ${{ needs.build-and-push.outputs.app_version_compact }}
-          IMAGE_REF: ${{ needs.build-and-push.outputs.image_ref }}
-        run: |
-          if [ -z "$ARGOCD_WEBHOOK_URL" ]; then
-            echo "ARGOCD_WEBHOOK_URL is not configured."
-            exit 1
-          fi
-
-          ENVIRONMENT="${DEPLOY_ENV:-production}"
-          FINAL_IMAGE_REF="$IMAGE_REF"
-
-          if [ -z "$FINAL_IMAGE_REF" ]; then
-            FINAL_IMAGE_REF="${DOCKER_REGISTRY}/${DOCKER_IMAGE_REPOSITORY}:${APP_VERSION_COMPACT}"
-          fi
-
-          if [ -z "$FINAL_IMAGE_REF" ] || [ "$FINAL_IMAGE_REF" = "/:" ]; then
-            echo "Unable to resolve image reference for ArgoCD payload."
-            exit 1
-          fi
-
-          PAYLOAD=$(cat <<EOF
-          {
-            "source": "github-actions",
-            "event": "manifests-updated",
-            "environment": "${ENVIRONMENT}",
-            "repository": "${GITHUB_REPOSITORY}",
-            "branch": "${GITHUB_REF_NAME}",
-            "commitSha": "${GITHUB_SHA}",
-            "version": "${APP_VERSION}",
-            "versionTag": "${APP_VERSION_COMPACT}",
-            "image": "${FINAL_IMAGE_REF}",
-            "runId": "${GITHUB_RUN_ID}",
-            "runUrl": "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          }
-          EOF
-          )
-
-          curl --fail --show-error --location \
-            --request POST \
-            --header "Content-Type: application/json" \
-            --data "$PAYLOAD" \
-            "$ARGOCD_WEBHOOK_URL"
