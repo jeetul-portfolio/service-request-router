@@ -76,12 +76,27 @@ func (h *routerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	for _, rule := range h.rules {
 		if rule.matches(path) {
+			log.Printf("route matched: method=%s from=%s path=%s rule=%s target=%s", r.Method, r.RemoteAddr, path, ruleIdentifier(rule), rule.rule.Host)
 			rule.proxy.ServeHTTP(w, r)
 			return
 		}
 	}
 
+	log.Printf("route not found: method=%s from=%s path=%s", r.Method, r.RemoteAddr, path)
 	http.Error(w, fmt.Sprintf("no route configured for path %q", path), http.StatusNotFound)
+}
+
+func ruleIdentifier(rule compiledRule) string {
+	switch rule.matchType {
+	case matchExact:
+		return fmt.Sprintf("exact:%s", rule.exact)
+	case matchPrefix:
+		return fmt.Sprintf("prefix:%s", rule.prefix)
+	case matchRegex:
+		return fmt.Sprintf("regex:%s", rule.rule.Regex)
+	default:
+		return "unknown"
+	}
 }
 
 func loadConfig(path string) (Config, error) {
