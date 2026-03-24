@@ -17,7 +17,7 @@
     {
       "name": "service-request-router",
       "replicas": 1,
-      "image": "docker.io/jeetulsamaiya1/portfolio:service-request-router-master-106",
+      "image": "docker.io/jeetulsamaiya1/portfolio:service-request-router-master-107",
       "containerPort": 8080,
       "containerCommand": [
         "/app/service-request-router"
