@@ -21,13 +21,13 @@ type Config struct {
 }
 
 type Rule struct {
-	Name   string `json:"name,omitempty"`
+	Name     string `json:"name,omitempty"`
 	Hostname string `json:"hostname,omitempty"`
-	Host   string `json:"host"`
-	Sort   int    `json:"sort"`
-	Exact  string `json:"exact,omitempty"`
-	Prefix string `json:"prefix,omitempty"`
-	Regex  string `json:"regex,omitempty"`
+	Host     string `json:"host"`
+	Sort     int    `json:"sort"`
+	Exact    string `json:"exact,omitempty"`
+	Prefix   string `json:"prefix,omitempty"`
+	Regex    string `json:"regex,omitempty"`
 }
 
 type compiledRule struct {
@@ -62,10 +62,13 @@ func main() {
 	}
 
 	handler := &routerHandler{rules: rules}
+	handlerWithCORS := withCORS(handler, map[string]struct{}{
+		"https://jeetulsamaiya.com": {},
+	})
 	addr := fmt.Sprintf(":%d", cfg.Port)
 
 	log.Printf("service-request-router listening on %s", addr)
-	if err := http.ListenAndServe(addr, handler); err != nil {
+	if err := http.ListenAndServe(addr, handlerWithCORS); err != nil {
 		log.Fatalf("server stopped: %v", err)
 	}
 }
@@ -278,4 +281,43 @@ func newProxy(target *url.URL) *httputil.ReverseProxy {
 	}
 
 	return proxy
+}
+
+func withCORS(next http.Handler, allowedOrigins map[string]struct{}) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := strings.TrimSuffix(strings.TrimSpace(r.Header.Get("Origin")), "/")
+		_, originAllowed := allowedOrigins[origin]
+
+		if originAllowed {
+			addVaryHeader(w.Header(), "Origin")
+			addVaryHeader(w.Header(), "Access-Control-Request-Method")
+			addVaryHeader(w.Header(), "Access-Control-Request-Headers")
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, Origin, X-Requested-With")
+		}
+
+		if r.Method == http.MethodOptions {
+			if !originAllowed {
+				http.Error(w, "origin not allowed", http.StatusForbidden)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func addVaryHeader(header http.Header, value string) {
+	vary := header.Values("Vary")
+	for _, existing := range vary {
+		for _, part := range strings.Split(existing, ",") {
+			if strings.EqualFold(strings.TrimSpace(part), value) {
+				return
+			}
+		}
+	}
+	header.Add("Vary", value)
 }
