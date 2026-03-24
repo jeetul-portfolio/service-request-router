@@ -2,6 +2,13 @@
   "port": 8080,
   "rules": [
     {
+      "name": "argocd",
+      "hostname": "argocd.jeetulsamaiya.com",
+      "prefix": "/",
+      "host": "http://argocd-server.argocd.svc.cluster.local:80",
+      "sort": 20
+    },
+    {
       "name": "core",
       "prefix": "/apis/core",
       "host": "http://core.portfolio.svc.cluster.local:8080",

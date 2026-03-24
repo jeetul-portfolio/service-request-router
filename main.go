@@ -22,6 +22,7 @@ type Config struct {
 
 type Rule struct {
 	Name   string `json:"name,omitempty"`
+	Hostname string `json:"hostname,omitempty"`
 	Host   string `json:"host"`
 	Sort   int    `json:"sort"`
 	Exact  string `json:"exact,omitempty"`
@@ -33,6 +34,7 @@ type compiledRule struct {
 	rule      Rule
 	order     int
 	matchType int
+	hostname  string
 	exact     string
 	prefix    string
 	regex     *regexp.Regexp
@@ -74,15 +76,16 @@ type routerHandler struct {
 
 func (h *routerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
+	reqHost := normalizeHostname(r.Host)
 	for _, rule := range h.rules {
-		if rule.matches(path) {
-			log.Printf("route matched: method=%s from=%s path=%s rule=%s target=%s", r.Method, r.RemoteAddr, path, ruleIdentifier(rule), rule.rule.Host)
+		if rule.matches(reqHost, path) {
+			log.Printf("route matched: method=%s from=%s host=%s path=%s rule=%s target=%s", r.Method, r.RemoteAddr, reqHost, path, ruleIdentifier(rule), rule.rule.Host)
 			rule.proxy.ServeHTTP(w, r)
 			return
 		}
 	}
 
-	log.Printf("route not found: method=%s from=%s path=%s", r.Method, r.RemoteAddr, path)
+	log.Printf("route not found: method=%s from=%s host=%s path=%s", r.Method, r.RemoteAddr, reqHost, path)
 	http.Error(w, fmt.Sprintf("no route configured for path %q", path), http.StatusNotFound)
 }
 
@@ -141,6 +144,10 @@ func compileRules(rules []Rule) ([]compiledRule, error) {
 			rule:  rule,
 			order: i,
 			proxy: newProxy(targetURL),
+		}
+
+		if strings.TrimSpace(rule.Hostname) != "" {
+			compiledRule.hostname = strings.ToLower(strings.TrimSpace(rule.Hostname))
 		}
 
 		defined := 0
@@ -223,7 +230,11 @@ func specificityLength(rule compiledRule) int {
 	}
 }
 
-func (r compiledRule) matches(path string) bool {
+func (r compiledRule) matches(requestHost, path string) bool {
+	if r.hostname != "" && !strings.EqualFold(r.hostname, requestHost) {
+		return false
+	}
+
 	switch r.matchType {
 	case matchExact:
 		return path == r.exact
@@ -234,6 +245,25 @@ func (r compiledRule) matches(path string) bool {
 	default:
 		return false
 	}
+}
+
+func normalizeHostname(host string) string {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return ""
+	}
+
+	parsed, err := url.Parse("//" + host)
+	if err != nil {
+		return strings.ToLower(host)
+	}
+
+	name := parsed.Hostname()
+	if name == "" {
+		return strings.ToLower(host)
+	}
+
+	return strings.ToLower(name)
 }
 
 func newProxy(target *url.URL) *httputil.ReverseProxy {
