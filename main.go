@@ -272,12 +272,30 @@ func normalizeHostname(host string) string {
 func newProxy(target *url.URL) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	originalDirector := proxy.Director
+	originalModifyResponse := proxy.ModifyResponse
 
 	proxy.Director = func(req *http.Request) {
 		originalDirector(req)
 		req.Header.Set("X-Forwarded-Host", req.Host)
 		req.Header.Set("X-Forwarded-Proto", req.URL.Scheme)
 		req.Header.Set("X-Forwarded-For", req.RemoteAddr)
+	}
+
+	proxy.ModifyResponse = func(resp *http.Response) error {
+		if originalModifyResponse != nil {
+			if err := originalModifyResponse(resp); err != nil {
+				return err
+			}
+		}
+
+		resp.Header.Del("Access-Control-Allow-Origin")
+		resp.Header.Del("Access-Control-Allow-Methods")
+		resp.Header.Del("Access-Control-Allow-Headers")
+		resp.Header.Del("Access-Control-Allow-Credentials")
+		resp.Header.Del("Access-Control-Expose-Headers")
+		resp.Header.Del("Access-Control-Max-Age")
+
+		return nil
 	}
 
 	return proxy
@@ -294,7 +312,13 @@ func withCORS(next http.Handler, allowedOrigins map[string]struct{}) http.Handle
 			addVaryHeader(w.Header(), "Access-Control-Request-Headers")
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, Origin, X-Requested-With")
+			requestedHeaders := strings.TrimSpace(r.Header.Get("Access-Control-Request-Headers"))
+			if requestedHeaders != "" {
+				w.Header().Set("Access-Control-Allow-Headers", requestedHeaders)
+			} else {
+				w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, Origin, X-Requested-With, If-None-Match")
+			}
+			w.Header().Set("Access-Control-Max-Age", "600")
 		}
 
 		if r.Method == http.MethodOptions {
