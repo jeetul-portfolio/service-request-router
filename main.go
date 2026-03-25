@@ -64,6 +64,8 @@ func main() {
 	handler := &routerHandler{rules: rules}
 	handlerWithCORS := withCORS(handler, map[string]struct{}{
 		"https://jeetulsamaiya.com": {},
+		"https://www.jeetulsamaiya.dev": {},
+		"https://localhost:5173": {},
 	})
 	addr := fmt.Sprintf(":%d", cfg.Port)
 
