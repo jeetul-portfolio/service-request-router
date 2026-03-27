@@ -316,6 +316,7 @@ func withCORS(next http.Handler, allowedOrigins map[string]struct{}, allowedSubd
 			addVaryHeader(w.Header(), "Access-Control-Request-Method")
 			addVaryHeader(w.Header(), "Access-Control-Request-Headers")
 			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 			requestedHeaders := strings.TrimSpace(r.Header.Get("Access-Control-Request-Headers"))
 			if requestedHeaders != "" {
