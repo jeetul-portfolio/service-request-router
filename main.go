@@ -63,9 +63,12 @@ func main() {
 
 	handler := &routerHandler{rules: rules}
 	handlerWithCORS := withCORS(handler, map[string]struct{}{
-		"https://jeetulsamaiya.com": {},
-		"https://www.jeetulsamaiya.dev": {},
-		"https://localhost:5173": {},
+		"https://jeetulsamaiya.com":       {},
+		"https://admin.jeetulsamaiya.com": {},
+		"https://www.jeetulsamaiya.dev":   {},
+		"https://localhost:5173":          {},
+	}, []string{
+		"jeetulsamaiya.com",
 	})
 	addr := fmt.Sprintf(":%d", cfg.Port)
 
@@ -303,10 +306,10 @@ func newProxy(target *url.URL) *httputil.ReverseProxy {
 	return proxy
 }
 
-func withCORS(next http.Handler, allowedOrigins map[string]struct{}) http.Handler {
+func withCORS(next http.Handler, allowedOrigins map[string]struct{}, allowedSubdomainRoots []string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := strings.TrimSuffix(strings.TrimSpace(r.Header.Get("Origin")), "/")
-		_, originAllowed := allowedOrigins[origin]
+		originAllowed := isOriginAllowed(origin, allowedOrigins, allowedSubdomainRoots)
 
 		if originAllowed {
 			addVaryHeader(w.Header(), "Origin")
@@ -334,6 +337,32 @@ func withCORS(next http.Handler, allowedOrigins map[string]struct{}) http.Handle
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func isOriginAllowed(origin string, allowedOrigins map[string]struct{}, allowedSubdomainRoots []string) bool {
+	if _, ok := allowedOrigins[origin]; ok {
+		return true
+	}
+
+	originURL, err := url.Parse(origin)
+	if err != nil || originURL.Scheme == "" || originURL.Host == "" {
+		return false
+	}
+
+	hostname := strings.ToLower(originURL.Hostname())
+
+	for _, root := range allowedSubdomainRoots {
+		normalizedRoot := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(root)), ".")
+		if normalizedRoot == "" {
+			continue
+		}
+
+		if strings.HasSuffix(hostname, "."+normalizedRoot) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func addVaryHeader(header http.Header, value string) {
