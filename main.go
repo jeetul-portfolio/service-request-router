@@ -72,7 +72,7 @@ func main() {
 		"https://www.jeetulsamaiya.dev":   {},
 		"https://localhost:5173":          {},
 	}, []string{
-		"jeetulsamaiya.com",
+		"jeetul.com",
 	})
 	addr := fmt.Sprintf(":%d", cfg.Port)
 
