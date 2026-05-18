@@ -64,6 +64,10 @@ func main() {
 	handler := &routerHandler{rules: rules}
 	handlerWithCORS := withCORS(handler, map[string]struct{}{
 		"https://jeetulsamaiya.com":       {},
+		"https://www.jeetulsamaiya.com":   {},
+		"https://jeetul.com":       	   {},
+		"https://www.jeetul.com":          {},
+		"https://admin.jeetul.com": 	   {},
 		"https://admin.jeetulsamaiya.com": {},
 		"https://www.jeetulsamaiya.dev":   {},
 		"https://localhost:5173":          {},
