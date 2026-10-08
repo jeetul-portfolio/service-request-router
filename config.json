@@ -3,7 +3,7 @@
   "rules": [
     {
       "name": "argocd",
-      "hostname": "argocd.jeetulsamaiya.com",
+      "hostname": "argocd.jeetul.com",
       "prefix": "/",
       "host": "http://argocd-server.argocd.svc.cluster.local:80",
       "sort": 20
