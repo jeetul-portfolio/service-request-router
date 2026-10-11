@@ -9,6 +9,27 @@
       "sort": 20
     },
     {
+      "name": "mcp-server",
+      "hostname": "mcp.jeetul.com",
+      "prefix": "/",
+      "host": "http://mcp-server.portfolio.svc.cluster.local:8080",
+      "sort": 20
+    },
+    {
+      "name": "core-oauth-metadata",
+      "hostname": "apis.jeetul.com",
+      "exact": "/.well-known/oauth-authorization-server",
+      "host": "http://core.portfolio.svc.cluster.local:8080",
+      "sort": 15
+    },
+    {
+      "name": "core-oauth",
+      "hostname": "apis.jeetul.com",
+      "prefix": "/oauth/",
+      "host": "http://core.portfolio.svc.cluster.local:8080",
+      "sort": 15
+    },
+    {
       "name": "core",
       "prefix": "/apis/core",
       "host": "http://core.portfolio.svc.cluster.local:8080",
