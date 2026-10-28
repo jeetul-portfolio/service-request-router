@@ -71,6 +71,8 @@ func main() {
 		"https://admin.jeetulsamaiya.com": {},
 		"https://www.jeetulsamaiya.dev":   {},
 		"https://localhost:5173":          {},
+		"http://127.0.0.1:4173":           {},
+		"http://localhost:4173":            {},
 	}, []string{
 		"jeetul.com",
 	})
